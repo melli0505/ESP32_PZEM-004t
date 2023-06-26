@@ -1,56 +1,120 @@
 #include <Arduino.h>
 #include <sstream>
+#include <WiFi.h>
 #include "config.h"
 
 const char* mqttServer = "115.95.190.117"; //
 const int mqttPort = 1883;
 
-WiFiClient espClient; //
-WiFiClient espClient2; //
-PubSubClient mqttClient(espClient); //
-PubSubClient subClient(espClient2);
+const char* const mqtt_user              = "myuser";
+const char* const mqtt_pass              = "myPassword";
+const char* const mqtt_clientName        = "esp32_arduino";
+
+unsigned long reconnectInterval = 5000;
+unsigned long lastReconnectAttempt = millis() - reconnectInterval - 1;
 
 const char* topic_pub = "Voltage"; //
 const char* topic_sub = "Control"; //
 
 int pwmValue = 0;
 
+void connectMQTTBroker(void);
+bool reconnect(void);
+bool publishMQTTMessage(const char *topic, const char *payload);
+void callback(char* topic, byte* payload, unsigned int length);
+
 void initPWMptc(void);
 void updateMQTTwithPWM(int PwmValue, bool force);
-void tryReconnect(PubSubClient client, char* mode);
-void subControlInst(char* topic, byte* payload, unsigned int length);
+WiFiClient espClient; //
+PubSubClient mqttClient(mqttServer, mqttPort, callback, espClient); //
+
 
 void connectMQTTBroker(void) {
-  mqttClient.setServer(mqttServer, mqttPort);
-  subClient.setServer(mqttServer, mqttPort);
-  subClient.setCallback(subControlInst);
-  if (!mqttClient.connected() || !subClient.connected()) {
-    if (!mqttClient.connected()) {
+  /*
+  Connect MQTT Server and start MQTT Client loop.
+  */
+
+  if (!mqttClient.connected()) {
+    unsigned long currentMillis = millis();
+    if ((currentMillis - lastReconnectAttempt) > reconnectInterval){
+      lastReconnectAttempt = currentMillis;
       Serial.println("Connecting to MQTT as publisher..");
-      tryReconnect(mqttClient, "Publisher");
-    }
-    if (!subClient.connected()) {
-      Serial.println("Connecting to MQTT as subscriber..");
-      tryReconnect(subClient, "Subscriber");
+      reconnect();
     }
   }
-  
-  subClient.subscribe(topic_sub);
-  subClient.loop();
+
+  if (mqttClient.connected()) { mqttClient.loop(); }
+  Serial.printf("\tmqttClient loop started.\n");
 }
 
-void tryReconnect(PubSubClient client, char* mode) {
-  if (client.connect("Esp32Client", mode, "password")) {
-    Serial.printf("Connected to MQTT as %s.\r\n", mode);
+
+bool reconnect(void) {
+  /*
+  Try to reconnect MQTT Server.
+  */
+
+  if (WiFi.isConnected()) {
+    if (mqttClient.connected()) { return true; }
+    else {
+      if (mqttClient.connect((char*) mqtt_clientName, (char*) mqtt_user, (char*) mqtt_pass)) {
+        Serial.printf("Connected to MQTT broker.");
+        mqttClient.subscribe("Control");
+      } 
+      else {
+        Serial.printf("Failed Connecting to MQTT. Retry in 5 seconds..\r\n");
+        Serial.println(mqttClient.state());
+        delay(5000);
+      }
+      return mqttClient.connected();
+    }
+  } else {
+    printf("No connection to MQTT server, because WiFi not available.");
+    return false;
+  }
+}
+
+
+bool publishMQTTMessage(const char *topic, const char *payload) {
+  /*
+  Publish message on MQTT Server.
+  */
+
+  if (!WiFi.isConnected()) return false;
+
+  if (reconnect()) {
+    if (mqttClient.publish(topic, payload)) {
+      return true;
+    }
+    else {
+      Serial.printf("\t Cannot publish mqtt message.");
+    }
   }
   else {
-    Serial.printf("Failed Connecting to MQTT. Retry in 5 seconds..\r\n");
-    Serial.println(client.state());
-    delay(5000);
+    printf("\t Cannot publish message because MQTT Server connection failed.");
   }
+  return false;
 }
 
+
+void callback(char* topic, byte* payload, unsigned int length) {
+  /*
+  Callback function that calls when message from subscribed topic has been arrived.
+  */
+
+  Serial.printf("Message arrived!!!!!!!!!!!!!!!!!!\n");
+  std::string strPayload(reinterpret_cast<const char *>(payload), length);
+
+  Serial.printf("Message arrived in topic: %s", topic);
+
+  Serial.printf("Message arrived: %s", strPayload.c_str());
+}
+
+
 void initPWMptc(void){
+  /*
+  PWM control initialize.
+  */
+
   ledcSetup(pwmChannel, pwmFreq, pwmResolution);
   ledcAttachPin(pwmPin, pwmChannel);
 
@@ -60,7 +124,12 @@ void initPWMptc(void){
   Serial.printf("  Fan PWM sucessfully initialized.\r\n");
 }
 
+
 void updateMQTTwithPWM(int PwmValue, bool force) {
+  /*
+  Update PWM value and publish on MQTT server.
+  */
+ 
   if ((pwmValue != PwmValue) || force) {
     pwmValue = PwmValue;
     if (pwmValue < 0) { pwmValue = 0; };
@@ -71,11 +140,7 @@ void updateMQTTwithPWM(int PwmValue, bool force) {
     std::stringstream value;
     value<<pwmValue;
 
-    mqttClient.publish(topic_pub, value.str().c_str());
+    publishMQTTMessage("Voltage", value.str().c_str());
   }
 }
 
-void subControlInst(char* topic, byte* payload, unsigned int length) {
-  Serial.print("Message arrived in topic:");
-  Serial.println(topic);
-}
