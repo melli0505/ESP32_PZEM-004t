@@ -8,6 +8,8 @@
 #include "mqttControl.h"
 
 int value = initialPwmValue;
+unsigned long previousMillis10000Cycle = 0;
+unsigned long interval10000Cycle = 50000;
 
 void setup() {
   Serial.begin(9600);
@@ -17,20 +19,25 @@ void setup() {
   WiFiInit();
   WiFiEnable();
 
-  // connect with MQTT
-  connectMQTTBroker();
-
   // pwm initialize
   initPWMptc();
   Serial.printf("Setting done, have fun.\r\n");
 }
 
 void loop() {
-  value = random(20, 26);
-  updateMQTTwithPWM(value, true);
-  delay(10000);
-  Serial.println("test complete.");
+  connectMQTTBroker();
+
+  unsigned long currentMillis = millis();
+
+  // 50000ms 마다 한 번 씩 publishing call
+  if ((currentMillis - previousMillis10000Cycle) >= interval10000Cycle) {
+    previousMillis10000Cycle = currentMillis;
+
+    value = random(20, 26);
+    updateMQTTwithPWM(value, true);
+
+  }
+  
+  delay(5000);
+  // Serial.println("test complete.");
 }
-
-
-
