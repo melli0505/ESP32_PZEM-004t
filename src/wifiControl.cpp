@@ -1,4 +1,5 @@
 #include <WiFi.h>
+#include <Wire.h>
 #include "config.h"
 
 boolean connected = false;
@@ -9,64 +10,76 @@ void WiFiDisconnected(WiFiEvent_t event, WiFiEventInfo_t info);
 void WiFiGotIP(WiFiEvent_t event, WiFiEventInfo_t info);
 void printWiFiStatus();
 
-void WiFiInit(void) {
-  WiFi.onEvent(WiFiConnected, ARDUINO_EVENT_WIFI_AP_STACONNECTED);
-  WiFi.onEvent(WiFiGotIP, ARDUINO_EVENT_WIFI_STA_GOT_IP);
-  WiFi.onEvent(WiFiDisconnected, ARDUINO_EVENT_WIFI_STA_DISCONNECTED);
+void setup_wifi() {
+  delay(10);
+  Serial.print("connecting to ");
+  Serial.println(wifi_ssid);
 
-  WiFi.mode(WIFI_MODE_STA);
-}
-
-void WiFiEnable(void) {
-  WiFi.onEvent(WiFiDisconnected, ARDUINO_EVENT_WIFI_STA_DISCONNECTED);
-  WiFi.begin(wifi_ssid, wifi_password);
-  while(!connected) {
-    delay(1000);
-    Serial.println("Connecting to WiFi..");
+  WiFi.begin((const char*)wifi_ssid.c_str(), (const char*)wifi_password.c_str());
+  while(WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print('.');
   }
-  printWiFiStatus();
+  Serial.println("wifi connected.");
 }
 
-// put function definitions here:
-void WiFiConnected(WiFiEvent_t event, WiFiEventInfo_t info) {
-  Serial.printf("Callback, WiFi Connected.\r\n");
-  connected = true;
-}
+// void WiFiInit(void) {
+//   WiFi.onEvent(WiFiConnected, ARDUINO_EVENT_WIFI_AP_STACONNECTED);
+//   WiFi.onEvent(WiFiGotIP, ARDUINO_EVENT_WIFI_STA_GOT_IP);
+//   WiFi.onEvent(WiFiDisconnected, ARDUINO_EVENT_WIFI_STA_DISCONNECTED);
 
-void WiFiDisconnected(WiFiEvent_t event, WiFiEventInfo_t info) {
-  Serial.printf("  Callback \"StationDisconnected\"\r\n");
-  connected = false;
-  printWiFiStatus();
-}
+//   WiFi.mode(WIFI_MODE_STA);
+// }
 
-void WiFiGotIP(WiFiEvent_t event, WiFiEventInfo_t info) {
-  Serial.printf("Callback, Got IP.\r\n");
-  connected = true;
+// void WiFiEnable(void) {
+//   WiFi.onEvent(WiFiDisconnected, ARDUINO_EVENT_WIFI_STA_DISCONNECTED);
+//   WiFi.begin(wifi_ssid, wifi_password);
+//   while(!connected) {
+//     delay(3000);
+//     Serial.println("Connecting to WiFi..");
+//   }
+//   printWiFiStatus();
+// }
 
-  String BSSID = String(WiFi.BSSIDstr());
-  if (BSSID == "00:11:22:33:44:55") {
-      accessPointName = "Your AP 2,4 GHz";
-  } else if (BSSID == "66:77:88:99:AA:BB") {
-      accessPointName = "Your AP 5 GHz";
-  }
+// void WiFiConnected(WiFiEvent_t event, WiFiEventInfo_t info) {
+//   Serial.printf("Callback, WiFi Connected.\r\n");
+//   connected = true;
+// }
 
-  printWiFiStatus();
+// void WiFiDisconnected(WiFiEvent_t event, WiFiEventInfo_t info) {
+//   Serial.printf("  Callback \"StationDisconnected\"\r\n");
+//   connected = false;
+//   printWiFiStatus();
+// }
 
-}
+// void WiFiGotIP(WiFiEvent_t event, WiFiEventInfo_t info) {
+//   Serial.printf("Callback, Got IP.\r\n");
+//   connected = true;
 
-void printWiFiStatus(void){
+//   String BSSID = String(WiFi.BSSIDstr());
+//   if (BSSID == "00:11:22:33:44:55") {
+//       accessPointName = "Your AP 2,4 GHz";
+//   } else if (BSSID == "66:77:88:99:AA:BB") {
+//       accessPointName = "Your AP 5 GHz";
+//   }
 
-  if (WiFi.isConnected()) {
-    Serial.printf("  WiFi.status() == connected\r\n");
-  } else {
-    Serial.printf("  WiFi.status() == DIS-connected\r\n");
-  }
+//   printWiFiStatus();
 
-  Serial.printf(("  IP address: %s\r\n"), WiFi.localIP().toString().c_str());
+// }
 
-  if (WiFi.isConnected()) { //  && WiFi.localIP().isSet()) {
-    Serial.printf("  WiFi connected and IP is set :-)\r\n");
-  } else {
-    Serial.printf("  WiFi not completely available :-(\r\n");
-  }
-}
+// void printWiFiStatus(void){
+
+//   if (WiFi.isConnected()) {
+//     Serial.printf("  WiFi.status() == connected\r\n");
+//   } else {
+//     Serial.printf("  WiFi.status() == DIS-connected\r\n");
+//   }
+
+//   Serial.printf(("  IP address: %s\r\n"), WiFi.localIP().toString().c_str());
+
+//   if (WiFi.isConnected()) { //  && WiFi.localIP().isSet()) {
+//     Serial.printf("  WiFi connected and IP is set :-)\r\n");
+//   } else {
+//     Serial.printf("  WiFi not completely available :-(\r\n");
+//   }
+// }

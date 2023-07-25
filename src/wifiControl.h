@@ -1,5 +1,6 @@
 #include <WiFi.h>
 
+void setup_wifi(void);
 void WiFiInit(void);
 void WiFiEnable(void);
 
