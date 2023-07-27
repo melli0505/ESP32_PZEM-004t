@@ -10,7 +10,6 @@ void connectMQTTBroker(void);
 void reconnect(void);
 bool publishMQTTMessage(const char *topic, const char *payload);
 void callback(char* topic, byte* payload, unsigned int length);
-
 void initPWMptc(void);
 void updateMQTTwithPWM(int PwmValue, bool force);
 
@@ -126,6 +125,7 @@ void updateMQTTwithPWM(int PwmValue, bool force) {
   }
 }
 
+
 void publishAC() {
   float voltage = get_voltage();
   float power = get_power();
@@ -141,10 +141,13 @@ void publishAC() {
   Serial.println(frequency); 
   Serial.println(pf);
 
-  publishMQTTMessage("AC/voltage", std::to_string(voltage).c_str());
-  publishMQTTMessage("AC/power", std::to_string(power).c_str());
-  publishMQTTMessage("AC/energy", std::to_string(energy).c_str());
-  publishMQTTMessage("AC/current", std::to_string(current).c_str());
-  publishMQTTMessage("AC/frequency", std::to_string(frequency).c_str());
-  publishMQTTMessage("AC/pf", std::to_string(pf).c_str());
+
+  std::string data = "{ \"voltage\" : " + std::to_string(voltage) 
+  + ", \"power\" : " + std::to_string(power)
+  + ", \"energe\" : " + std::to_string(energy) 
+  + ", \"current\" : " + std::to_string(current) 
+  + ", \"frequency\" : " + std::to_string(frequency) 
+  + ", \"pf\" : " + std::to_string(pf) + "}"; 
+
+  publishMQTTMessage("data", data.c_str());
 }
